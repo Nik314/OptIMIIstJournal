@@ -1,1 +1,1 @@
-from .split_log import split_log
+from .split_log import split_log,split_log_old
