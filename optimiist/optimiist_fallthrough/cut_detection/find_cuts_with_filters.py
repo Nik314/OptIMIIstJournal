@@ -67,7 +67,7 @@ def get_filtered_cut_iterative(log, operator: Operator, base_model: callable, fi
 
     log_a, log_b, empty_traces_a, empty_traces_b = split_log(log, cut2[0], cut2[1], cut2[2], 0)
 
-    score = evalutate_cut(cut2, log, log_a, log_b, log_stats["dfg"])[2] - (nsum / total_activities)
+    score = evalutate_cut(cut2, log, log_a, log_b, log_stats["dfg"])[2] * (1 - (nsum / total_activities))
 
     if score > base_score:
       n_res.append(n)
