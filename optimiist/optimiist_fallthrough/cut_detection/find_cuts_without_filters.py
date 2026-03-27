@@ -3,6 +3,7 @@ from .utils import extract_partitions_pulp, get_solver
 from pulp import *
 
 solver = get_solver()
+BASE_ILP_TIMEOUT = 60
 
 def findCut_OptIMIIst(dfg, efg, start_activities, end_activities, activities) -> list[tuple[Operator, list[str], list[str]]]:
   seq = seq_partitions, obj_val = sequence_cut_base_model(efg, activities)
@@ -33,7 +34,7 @@ def sequence_cut_base_model(efg, activities, verb=0):
   # Maximize the arcs from partition 1 to partition 2 - reduce objective by the arcs from partition 2 to partition 1
   ilp_model += lpSum((x[a] - x[b]) * efg[(a, b)] for a in activities for b in activities)
 
-  ilp_model.solve(solver(msg=verb))
+  ilp_model.solve(solver(msg=verb,timeLimit=BASE_ILP_TIMEOUT))
 
   return extract_partitions_pulp(x), value(ilp_model.objective)
 
@@ -60,7 +61,7 @@ def xor_cut_base_model(dfg, activities, verb=0):
   # Objective: Minimize the number of arcs between the partitions
   ilp_model += lpSum(dfg[(a, b)] * z[(a, b)] for a in activities for b in activities)
 
-  ilp_model.solve(solver(msg=verb))
+  ilp_model.solve(solver(msg=verb,timeLimit=BASE_ILP_TIMEOUT))
 
   return extract_partitions_pulp(x), value(ilp_model.objective)
 
@@ -105,7 +106,7 @@ def parralel_cut_base_model(dfg, activities, start_activities, end_activities, v
   # Objective: Maximize the number of arcs between the partitions - reduce objective by the difference between start and end activities between the partitions
   ilp_model += lpSum(z[(act1, act2)] * dfg[(act1, act2)] for act1 in activities for act2 in activities) - b_f
 
-  ilp_model.solve(solver(msg=verb))
+  ilp_model.solve(solver(msg=verb,timeLimit=BASE_ILP_TIMEOUT))
 
   return extract_partitions_pulp(x), value(ilp_model.objective)
 
@@ -159,6 +160,6 @@ def loop_cut_base_model(dfg, activities, start_activities, end_activities, verb=
     - lpSum((f[(activity_1, activity_2)] * dfg[(activity_1, activity_2)]) for activity_1 in activities for activity_2 in activities)
   )
 
-  ilp_model.solve(solver(msg=verb))
+  ilp_model.solve(solver(msg=verb,timeLimit=BASE_ILP_TIMEOUT))
 
   return extract_partitions_pulp(x), value(ilp_model.objective)

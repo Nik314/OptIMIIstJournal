@@ -10,6 +10,7 @@ from pulp import *
 solver = get_solver()
 
 MAX_FILTERS = math.inf
+FILTER_ILP_TIMEOUT = 60
 
 def add_partition_constraints(ilp_model, x, n, activities):
   # Partitions can not be empty
@@ -132,7 +133,7 @@ def sequence_cut_filter_model(efg, activities, verb=0):
 
   ilp_model += lpSum((x_abs[a, b] - x_abs[b, a]) * efg[(a, b)] for a in activities for b in activities)
 
-  ilp_model.solve(solver(msg=verb))
+  ilp_model.solve(solver(msg=verb,timeLimit=FILTER_ILP_TIMEOUT))
 
   return extract_partitions_pulp(x), extract_filtered_activity_pulp(n), value(ilp_model.objective)
 
@@ -193,7 +194,7 @@ def xor_cut_filter_model(log, activities, verb=0):
     + lpSum(skips[(b, (a, c))] * k[(a, b, c)] for a in activities for b in activities for c in activities)
   )
 
-  ilp_model.solve(solver(msg=verb))
+  ilp_model.solve(solver(msg=verb,timeLimit=FILTER_ILP_TIMEOUT))
 
   return extract_partitions_pulp(x), extract_filtered_activity_pulp(n), value(ilp_model.objective)
 
@@ -288,8 +289,7 @@ def parralel_cut_filter_model(log, activities, verb=0):
             + lpSum(skips[(activity2, (activity1, activity3))] * k[(activity1, activity2, activity3)] for activity1 in activities for activity2 in activities for activity3 in activities) 
             - b)
 
-  ilp_model.solve(solver(msg=verb))
-
+  ilp_model.solve(solver(msg=verb,timeLimit=FILTER_ILP_TIMEOUT))
   return extract_partitions_pulp(x), extract_filtered_activity_pulp(n), value(ilp_model.objective)
 
 def loop_cut_filter_model(log, activities, verb=0):
@@ -398,6 +398,6 @@ def loop_cut_filter_model(log, activities, verb=0):
     - lpSum(f_k[activity_1, activity_3, activity_2] * skip_dfgs[activity_3, (activity_1, activity_2)] for activity_1 in activities for activity_2 in activities for activity_3 in activities)
   )
 
-  ilp_model.solve(solver(msg=verb))
+  ilp_model.solve(solver(msg=verb,timeLimit=FILTER_ILP_TIMEOUT))
 
   return extract_partitions_pulp(x), extract_filtered_activity_pulp(n), value(ilp_model.objective)
