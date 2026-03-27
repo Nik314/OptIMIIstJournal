@@ -4,27 +4,29 @@ from pm4py.objects.process_tree.obj import Operator
 import numpy as np
 
 CUSTOM_WEIGHTS = {
-  "sequence": 1.1,
-  "xor": 1,
-  "parallel": 1,
-  "loop": 1,
-  "tau_loop": 0.8
+  "sequence": 1.0,
+  "xor": 1.0,
+  "parallel": 1.0,
+  "loop": 1.0,
+  "tau_loop": 1.0
 }
 
 def evalutate_cut(cut, log, log_a, log_b, dfg) -> Tuple[float, float, float]:
   if cut[0] == Operator.SEQUENCE:
     return get_seq_conformance(dfg, cut[1], cut[2], log_a, log_b)
-  elif cut[0] == Operator.XOR and len(log_a) > 0 and len(log_b) > 0:
+  elif cut[0] == Operator.XOR:
     return get_xor_conformance(dfg, cut[1], cut[2])
   elif cut[0] == Operator.PARALLEL:
     return get_and_conformance(log, log_a, log_b)
   elif cut[0] == Operator.LOOP and len(log_a) > 0 and len(log_b) > 0:
     return get_loop_conformance(log, dfg, cut[1], cut[2], log_a, log_b)
-  elif cut[0] == Operator.LOOP and len(log_b) == 0:
+  elif cut[0] == Operator.LOOP and len(log_a) > 0:
     return get_tau_loop_confromance(log, dfg, log_a)
+  elif cut[0] == Operator.LOOP and len(log_b) > 0:
+    return get_tau_loop_confromance(log, dfg, log_b)
   else:
     raise Exception("Invalid cut: " + str(cut) + " " + str(log_a) + " " + str(log_b) + " " + str(log))
-  
+
 def calculate_mae(truth_array, input_array):
     if len(truth_array) != len(input_array):
         raise ValueError("Arrays must be of the same length")
@@ -87,8 +89,8 @@ def get_seq_conformance(dfg, partition_1, partition_2, log_1, log_2) -> Tuple[fl
     [base_probabilities[a,b] for a in end_1 for b in start_2], 
     [actual_probabilities[a,b] for a in end_1 for b in start_2]
   )
-
-  return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["sequence"]
+  equality_term = len(partition_1) *len(partition_2) / ((0.5*len(partition_1)+len(partition_2))**2)
+  return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["sequence"] * equality_term
 
 def get_xor_conformance(dfg, partition_1, partition_2) -> Tuple[float, float, float]:
   # Fitness
@@ -105,12 +107,15 @@ def get_xor_conformance(dfg, partition_1, partition_2) -> Tuple[float, float, fl
     elif edge[1] in partition_1 and edge[0] in partition_2 and dfg[edge] > 0:
       crossing_edges += 1
 
-  fitness = 1 - (crossing_edges / possible_edges)
-
+  try:
+    fitness = 1 - (crossing_edges / possible_edges)
+  except:
+    return 0,0,0
   # Precision
   precision = 1
 
-  return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["xor"]
+  equality_term = len(partition_1) *len(partition_2) / ((0.5*len(partition_1)+len(partition_2))**2)
+  return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["xor"] * equality_term
 
 def get_and_conformance(log, log_a, log_b) -> Tuple[float, float, float]:
   # Fitness
@@ -129,7 +134,10 @@ def get_and_conformance(log, log_a, log_b) -> Tuple[float, float, float]:
 
   precision = len(variants_base) / expected_variants
 
-  return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["parallel"]
+  partition_1 = log_a["concept:name"].unique()
+  partition_2 = log_b["concept:name"].unique()
+  equality_term = len(partition_1) *len(partition_2) / ((0.5*len(partition_1)+len(partition_2))**2)
+  return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["parallel"]*equality_term
 
 def get_loop_conformance(log, dfg, partition_1, partition_2, loop_a, loop_b) -> Tuple[float, float, float]:
   # Fitness
@@ -210,7 +218,8 @@ def get_loop_conformance(log, dfg, partition_1, partition_2, loop_a, loop_b) -> 
 
   precision = (1 - (enter_mae + exit_mae) / 2)
 
-  return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["loop"]
+  equality_term = len(partition_1) *len(partition_2) / ((0.5*len(partition_1)+len(partition_2))**2)
+  return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["loop"]*equality_term
 
 def get_tau_loop_confromance(log, dfg, loop_a) -> Tuple[float, float, float]:
   fitness = 1
@@ -221,7 +230,6 @@ def get_tau_loop_confromance(log, dfg, loop_a) -> Tuple[float, float, float]:
   total_start_activities = 0
   for a in start_a:
     total_start_activities += start_a[a]
-
 
   base_probabilities = {}
   actual_probabilities = {}
@@ -245,4 +253,5 @@ def get_tau_loop_confromance(log, dfg, loop_a) -> Tuple[float, float, float]:
     [actual_probabilities[a,b] for a in end_a for b in start_a]
   )
 
-  return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["tau_loop"]
+  equality_term = len(loop_a) *len([]) / ((0.5*len(loop_a)+len([]))**2)
+  return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["tau_loop"]*equality_term
