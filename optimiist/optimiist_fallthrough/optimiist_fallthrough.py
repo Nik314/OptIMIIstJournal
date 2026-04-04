@@ -19,7 +19,7 @@ def get_optimiist_cut(log, empty_traces=0, filter=True) -> ProcessTree:
   a_res = 0
   for cut in C:
     log_a, log_b, empty_traces_a, empty_traces_b = split_log(log, cut[0], cut[1], cut[2], empty_traces, *(cut[3:]) if filter else [])
-    a = evalutate_cut(cut, log, log_a, log_b, log_stats["dfg"])[2] - ((len(cut[3]) / len(log_stats["activities"])) if filter and len(cut) > 3 else 0)
+    a = evalutate_cut(cut, log, log_a, log_b, log_stats["dfg"],log_stats["efg"])[2] - ((len(cut[3]) / len(log_stats["activities"])) if filter and len(cut) > 3 else 0)
     if a_res < a:
       a_res = a
       operator, L_1, L_2, empty_traces_1, empty_traces_2 = cut[0], log_a, log_b, empty_traces_a, empty_traces_b

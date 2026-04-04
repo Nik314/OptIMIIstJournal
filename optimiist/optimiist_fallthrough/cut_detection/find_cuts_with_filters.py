@@ -36,7 +36,6 @@ def findCut_OptIMIIst(log, log_stats) -> tuple[Operator, list, list, list]:
 def get_filtered_cut_iterative(log, operator: Operator, base_model: callable, filter_model: callable, log_stats):
   activities = log["concept:name"].unique()
   total_activities = len(log)
-
   n_res = []
 
   if operator == Operator.PARALLEL or operator == Operator.LOOP:
@@ -48,8 +47,9 @@ def get_filtered_cut_iterative(log, operator: Operator, base_model: callable, fi
 
   cut = [operator, cut[0][0], cut[0][1]]
   log_a, log_b, empty_traces_a, empty_traces_b = split_log(log, operator, cut[1], cut[2], 0)
-
-  base_score = evalutate_cut(cut, log, log_a, log_b, log_stats["dfg"])[2]
+  base_score = evalutate_cut(cut, log, log_a, log_b, log_stats["dfg"],log_stats["efg"])[2]
+  sizefull = log.groupby("case:concept:name").size().to_dict()
+  logsize = log.shape[0]
 
   nsum = 0
 
@@ -67,9 +67,11 @@ def get_filtered_cut_iterative(log, operator: Operator, base_model: callable, fi
     activities = log["concept:name"].unique()
 
     log_a, log_b, empty_traces_a, empty_traces_b = split_log(log, cut2[0], cut2[1], cut2[2], 0)
-
-    score = evalutate_cut(cut2, log, log_a, log_b, log_stats["dfg"])[2] * (1 - (nsum / total_activities))
-
+    sizea = log_a.groupby("case:concept:name").size().to_dict()
+    sizeb = log_b.groupby("case:concept:name").size().to_dict()
+    trace_check = [key for key in sizefull.keys() if sizefull[key] == sizea.get(key, 0) + sizeb.get(key, 0)]
+    loss_rate =  (len(trace_check) / len(sizefull))
+    score = evalutate_cut(cut2, log, log_a, log_b, log_stats["dfg"],log_stats["efg"])[2]*loss_rate
     if score > base_score:
       n_res.append(n)
       base_score = score

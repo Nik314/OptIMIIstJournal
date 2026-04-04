@@ -11,7 +11,7 @@ CUSTOM_WEIGHTS = {
   "tau_loop": 1.0
 }
 
-def evalutate_cut(cut, log, log_a, log_b, dfg) -> Tuple[float, float, float]:
+def evalutate_cut(cut, log, log_a, log_b, dfg,efg) -> Tuple[float, float, float]:
   if cut[0] == Operator.SEQUENCE:
     return get_seq_conformance(dfg, cut[1], cut[2], log_a, log_b)
   elif cut[0] == Operator.XOR:
@@ -48,7 +48,7 @@ def get_seq_conformance(dfg, partition_1, partition_2, log_1, log_2) -> Tuple[fl
   violating_edges = 0
   crossing_edges = 0
   
-  for edge in dfg:
+  for edge in dfg.keys():
     if edge[0] in partition_1 and edge[1] in partition_2:
       crossing_edges += dfg[edge]
     elif edge[0] in partition_2 and edge[1] in partition_1:
@@ -95,25 +95,25 @@ def get_seq_conformance(dfg, partition_1, partition_2, log_1, log_2) -> Tuple[fl
 def get_xor_conformance(dfg, partition_1, partition_2) -> Tuple[float, float, float]:
   # Fitness
   crossing_edges = 0
-  possible_edges = 0
-
-  for activity_1 in partition_1:
-    for activity_2 in partition_2:
-      possible_edges += 2
+  avg_edge_frequency = sum(dfg.values()) / max([len([v for v in dfg.values() if v]),1])
+  violations = 0
 
   for edge in dfg:
     if edge[0] in partition_1 and edge[1] in partition_2 and dfg[edge] > 0:
       crossing_edges += 1
+      violations +=dfg[edge]
     elif edge[1] in partition_1 and edge[0] in partition_2 and dfg[edge] > 0:
       crossing_edges += 1
+      violations +=dfg[edge]
 
   try:
-    fitness = 1 - (crossing_edges / possible_edges)
+    #here it was forgotten to account for the actual frequency of the edges
+    #example replacement, relates to average expected frequency.
+    fitness = 1 - min([((violations/crossing_edges)/max(avg_edge_frequency,1)),1])
   except:
     return 0,0,0
   # Precision
   precision = 1
-
   equality_term = len(partition_1) *len(partition_2) / ((0.5*len(partition_1)+len(partition_2))**2)
   return fitness, precision, f1_score(precision, fitness) * CUSTOM_WEIGHTS["xor"] * equality_term
 
@@ -127,12 +127,17 @@ def get_and_conformance(log, log_a, log_b) -> Tuple[float, float, float]:
   variants_a = pm4py.statistics.variants.log.get.get_variants(log_a)
   variants_b = pm4py.statistics.variants.log.get.get_variants(log_b)
 
-  average_variant_length_a = sum([len(variant) for variant in variants_a]) / len(variants_a) if len(variants_a) > 0 else 0
-  average_variant_length_b = sum([len(variant) for variant in variants_b]) / len(variants_b) if len(variants_b) > 0 else 0
+  average_variant_length_a = sum([len(variant) for variant in variants_a]) / len(variants_a) if len(variants_a) > 0 else 1
+  average_variant_length_b = sum([len(variant) for variant in variants_b]) / len(variants_b) if len(variants_b) > 0 else 1
 
-  expected_variants = 2**(average_variant_length_a + average_variant_length_b)
+  #here the 2**(avg combined length only accounts for one variant from each sublogs
+  #it needs to be multiplied with the number of combinations!!
+  expected_variants = len(variants_a)*len(variants_b) * (2**(average_variant_length_a + average_variant_length_b))
 
-  precision = len(variants_base) / expected_variants
+  if expected_variants >= len(variants_base):
+    precision = len(variants_base) / expected_variants
+  else:
+    precision = 0
 
   partition_1 = log_a["concept:name"].unique()
   partition_2 = log_b["concept:name"].unique()
