@@ -7,7 +7,7 @@ def get_base_case(log, empty_cases=0, TAU_THRESHOLD=0.1, LOOP_THRESHOLD=0.2):
   :return: the base case if it is a base case, None otherwise
   """
   # If the log is empty return an empty Process Tree
-  if log.empty:
+  if log is None or log.empty:
     return ProcessTree()
 
   # If no empty cases only one activity class and no case is longer than 1 return a Process Tree with a single activity
